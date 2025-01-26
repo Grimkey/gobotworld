@@ -1,8 +1,9 @@
 package terminal
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"gobotworld/src/world/object"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 var (

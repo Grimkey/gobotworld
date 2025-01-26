@@ -157,7 +157,6 @@ func (world World) Tick() {
 var directions = []Direction{North, South, East, West}
 
 func (world World) NpcMove() {
-	return
 	for being, isPlayer := range world.Beings {
 		if isPlayer {
 			continue
@@ -170,28 +169,11 @@ func (world World) NpcMove() {
 		for _, direction := range directions {
 			if moved := world.Move(being, direction); moved {
 				// If the move was successful, stop trying to move
-				world.logger.Printf("NPC %d moved %s", being.Ident().Index, direction)
+				world.logger.Printf("NPC %d moved %s", being.Ident().Index, direction.String())
 				break
 			}
 		}
 	}
-}
-
-func (world World) NeighboursOld(p image.Point) []image.Point {
-	offsets := []image.Point{
-		{0, -1}, // North
-		{1, 0},  // East
-		{0, 1},  // South
-		{-1, 0}, // West
-	}
-	res := make([]image.Point, 0, 4)
-	for _, off := range offsets {
-		q := p.Add(off)
-		if world.Geography.CanPass(q, world.Player) {
-			res = append(res, q)
-		}
-	}
-	return res
 }
 
 func (world World) Neighbours(p image.Point) iter.Seq[image.Point] {
@@ -236,7 +218,7 @@ func (world World) Move(char *Character, direction Direction) bool {
 		if char.Ident().Index == being.Ident().Index { // Ignore if we are the same being
 			continue
 		}
-		if being.Location.X == proposed.X && being.Location.Y == proposed.Y && being.Passable(char) == false {
+		if being.Location.X == proposed.X && being.Location.Y == proposed.Y && !being.Passable(char) {
 			return false
 		}
 	}

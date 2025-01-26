@@ -14,6 +14,22 @@ const (
 	East  Direction = 4
 )
 
+// String method for Direction
+func (d Direction) String() string {
+	switch d {
+	case North:
+		return "North"
+	case West:
+		return "West"
+	case South:
+		return "South"
+	case East:
+		return "East"
+	default:
+		return "Unknown"
+	}
+}
+
 type Character struct {
 	ident     object.Object
 	Location  *image.Point

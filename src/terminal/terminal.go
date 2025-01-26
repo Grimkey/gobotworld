@@ -2,11 +2,12 @@ package terminal
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
 	"gobotworld/src/geometry"
 	"gobotworld/src/world"
 	"gobotworld/src/world/object"
 	"image"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 var DefaultDisplayLength = 15
@@ -54,7 +55,7 @@ func (t Terminal) DrawWorld(gameWorld world.World) {
 	playerLocation := *gameWorld.Player.Location
 	wnd := t.drawWindow(playerLocation, gameWorld.Geography.Height(), gameWorld.Geography.Width())
 	cycle, count := gameWorld.Time()
-	pathFinder := world.PathFinder{gameWorld}
+	pathFinder := world.PathFinder{World: gameWorld}
 
 	nearestLight := gameWorld.Lights.NearestLight(playerLocation)
 	path := pathFinder.Find(playerLocation, nearestLight)
@@ -103,7 +104,7 @@ func (t Terminal) DrawWorld(gameWorld world.World) {
 	str := fmt.Sprintf("X: %d, Y: %d -- Left: %d, Top: %d, Width: %d, Height: %d", player.Location.X, player.Location.Y, wnd.Left, wnd.Top, wnd.Width, wnd.Height)
 	t.screen.SetContent(0, 0, ' ', []rune(str), displayStyle)
 
-	str = fmt.Sprintf("::Time::")
+	str = "::Time::"
 	t.screen.SetContent(w-t.CommandWidth+1, 2, ' ', []rune(str), borderStyle)
 
 	c := "Night"
