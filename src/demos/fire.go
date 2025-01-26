@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
 	"gobotworld/src/terminal"
 	"os"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func panicOnError(err error) {
@@ -45,7 +46,8 @@ func main() {
 		}
 	}()
 
-	term.SetCell(1, 1, fire1Style, '^')
+	runeStyle := terminal.RuneStyle{Symbol: '^', Style: fire1Style}
+	term.SetCell(1, 1, runeStyle)
 
 loop:
 	for {

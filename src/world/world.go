@@ -103,6 +103,15 @@ type World struct {
 	time      *int
 }
 
+func EmptyWorld(logger *log.Logger) World {
+	cfg := NewConfig(
+		DefaultTerrain{object.NewObject(0, object.Dirt1Type, true), 400},
+		DefaultTerrain{object.NewObject(0, object.Dirt2Type, true), 250},
+		DefaultTerrain{object.NewObject(0, object.RockType, true), 50},
+	)
+	return InitWorld(logger, Height, Width, cfg)
+}
+
 func DefaultWorld(logger *log.Logger) World {
 	cfg := NewConfig(
 		DefaultTerrain{object.NewObject(0, object.Dirt1Type, true), 400},
@@ -227,7 +236,9 @@ func (world World) Move(char *Character, direction Direction) bool {
 		world.Geography.RemoveLoc(*location, char)
 		world.Geography.AddLoc(proposed, char)
 		char.Location = &proposed
+
+		return true
 	}
 
-	return true
+	return false
 }
