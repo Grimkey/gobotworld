@@ -4,6 +4,7 @@ import (
 	"gobotworld/src/geometry"
 	"gobotworld/src/world/object"
 	"image"
+	"iter"
 	"log"
 	"math/rand"
 )
@@ -156,6 +157,7 @@ func (world World) Tick() {
 var directions = []Direction{North, South, East, West}
 
 func (world World) NpcMove() {
+	return
 	for being, isPlayer := range world.Beings {
 		if isPlayer {
 			continue
@@ -168,14 +170,14 @@ func (world World) NpcMove() {
 		for _, direction := range directions {
 			if moved := world.Move(being, direction); moved {
 				// If the move was successful, stop trying to move
-				world.logger.Printf("NPC %d moved %s", being.Ident().Index, directions[direction])
+				world.logger.Printf("NPC %d moved %s", being.Ident().Index, direction)
 				break
 			}
 		}
 	}
 }
 
-func (world World) Neighbours(p image.Point) []image.Point {
+func (world World) NeighboursOld(p image.Point) []image.Point {
 	offsets := []image.Point{
 		{0, -1}, // North
 		{1, 0},  // East
@@ -190,6 +192,27 @@ func (world World) Neighbours(p image.Point) []image.Point {
 		}
 	}
 	return res
+}
+
+func (world World) Neighbours(p image.Point) iter.Seq[image.Point] {
+	return func(yield func(image.Point) bool) {
+		offsets := []image.Point{
+			{0, -1}, // North
+			{1, 0},  // East
+			{0, 1},  // South
+			{-1, 0}, // West
+		}
+
+		for _, off := range offsets {
+			q := p.Add(off)
+			if world.Geography.CanPass(q, world.Player) {
+				// I find iterators a little tricky. This means keep yielding until we get back a false which means the caller is done iterating.
+				if !yield(q) {
+					return
+				}
+			}
+		}
+	}
 }
 
 var moveTransform = map[Direction]image.Point{
