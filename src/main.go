@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
 	"gobotworld/src/terminal"
 	"gobotworld/src/world"
-	"gobotworld/src/world/character"
+	"log"
 	"os"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func panicOnError(err error) {
@@ -18,7 +19,15 @@ func panicOnError(err error) {
 }
 
 func main() {
-	gameWorld := world.DefaultWorld()
+	// Create a file
+	file, err := os.Create("game.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	logger := log.New(file, "", log.LstdFlags)
+
+	gameWorld := world.DefaultWorld(logger)
 
 	term, err := terminal.Init()
 	defer term.Fini()
@@ -36,13 +45,13 @@ func main() {
 					close(quit)
 					return
 				case tcell.KeyLeft:
-					gameWorld.Move(character.Player, -1, 0)
+					gameWorld.Move(gameWorld.Player, world.West)
 				case tcell.KeyRight:
-					gameWorld.Move(character.Player, 1, 0)
+					gameWorld.Move(gameWorld.Player, world.East)
 				case tcell.KeyUp:
-					gameWorld.Move(character.Player, 0, -1)
+					gameWorld.Move(gameWorld.Player, world.North)
 				case tcell.KeyDown:
-					gameWorld.Move(character.Player, 0, 1)
+					gameWorld.Move(gameWorld.Player, world.South)
 
 				}
 			case *tcell.EventResize:
@@ -62,9 +71,11 @@ loop:
 		case <-time.After(time.Millisecond * 50):
 		}
 		start := time.Now()
+		gameWorld.Tick()
+		gameWorld.NpcMove()
 		term.DrawWorld(gameWorld)
 		term.Show()
 		cnt++
-		dur += time.Now().Sub(start)
+		dur += time.Since(start)
 	}
 }

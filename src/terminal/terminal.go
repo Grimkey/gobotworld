@@ -3,48 +3,23 @@ package terminal
 import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
+	"gobotworld/src/geometry"
 	"gobotworld/src/world"
-	"gobotworld/src/world/character"
-	"gobotworld/src/world/terrain"
+	"gobotworld/src/world/object"
+	"image"
 )
-
-var displayStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite)
-var defaultStyle = tcell.StyleDefault.Foreground(tcell.ColorGray).Background(tcell.ColorBlack)
-var obstacleStyle = tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
-var playerStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).Background(tcell.ColorBlack)
-
-type terrainDisplay struct {
-	Symbol rune
-	Style  tcell.Style
-}
-
-var terrainSymbols = map[terrain.Terrain]terrainDisplay{
-	terrain.Empty:    {' ', defaultStyle},
-	terrain.Dirt:     {'.', defaultStyle},
-	terrain.Rock:     {'o', defaultStyle},
-	terrain.Obstacle: {'@', obstacleStyle},
-}
-
-type Window struct {
-	Left   int
-	Top    int
-	Width  int
-	Height int
-}
 
 var DefaultDisplayLength = 15
 
 type Terminal struct {
-	DisplayWidth  int
-	DisplayHeight int
-	screen        tcell.Screen
+	CommandWidth int
+	screen       tcell.Screen
 }
 
 func Init() (Terminal, error) {
 	tcell.SetEncodingFallback(tcell.EncodingFallbackASCII)
 	s, e := tcell.NewScreen()
-	w, h := s.Size()
-	terminal := Terminal{screen: s, DisplayWidth: w - 15, DisplayHeight: h - 1}
+	terminal := Terminal{screen: s, CommandWidth: DefaultDisplayLength}
 
 	if e != nil {
 		return terminal, e
@@ -53,7 +28,7 @@ func Init() (Terminal, error) {
 		return terminal, e
 	}
 
-	s.SetStyle(defaultStyle)
+	s.SetStyle(nightDefaultStyle)
 	s.Clear()
 
 	return terminal, nil
@@ -71,44 +46,93 @@ func (t Terminal) Fini() {
 	t.screen.Fini()
 }
 
-func (t Terminal) SetCell(x int, y int, style tcell.Style, ch ...rune) {
-	t.screen.SetCell(x, y, style, ch...)
+func (t Terminal) SetCell(x int, y int, runeStyle RuneStyle) {
+	t.screen.SetCell(x, y, runeStyle.Style, runeStyle.Symbol)
 }
 
-func (t Terminal) DrawWorld(world world.World) {
-	playerLocation := *world.Beings[character.Player]
-	wnd := t.drawWindow(playerLocation, world.Height(), world.Width())
+func (t Terminal) DrawWorld(gameWorld world.World) {
+	playerLocation := *gameWorld.Player.Location
+	wnd := t.drawWindow(playerLocation, gameWorld.Geography.Height(), gameWorld.Geography.Width())
+	cycle, count := gameWorld.Time()
+	pathFinder := world.PathFinder{gameWorld}
+
+	nearestLight := gameWorld.Lights.NearestLight(playerLocation)
+	path := pathFinder.Find(playerLocation, nearestLight)
 
 	x := 0
 	y := 1
+	w, _ := t.screen.Size()
+	display := w - t.CommandWidth
+	t.SetCell(display, 0, RuneStyle{Symbol: '|', Style: borderStyle})
+
 	for col := wnd.Top; col < wnd.Height; col++ {
+		t.SetCell(w-t.CommandWidth, y, RuneStyle{Symbol: '|', Style: borderStyle})
+
 		for row := wnd.Left; row < wnd.Width; row++ {
-			cell := world.Geography[col][row]
-			if cell == nil {
-				print("here")
+			pt := gameWorld.Geography[col][row]
+			loc := image.Point{X: row, Y: col}
+
+			light := LightValue(loc, wnd, gameWorld)
+			sense := SenseValue(loc, gameWorld)
+			runeStyle := drawCell(pt, light, sense)
+
+			if ok := path[loc]; ok {
+				runeStyle = RuneStyle{Symbol: runeStyle.Symbol, Style: pathStyle}
 			}
-			terrain := terrainSymbols[cell.Terrain]
-			t.screen.SetCell(x, y, terrain.Style, terrain.Symbol)
+
+			/////////////////////////////
+			// Tint test
+
+			//cycle, tick := gameWorld.Time()
+			//if cycle == object.NightTime {
+			//	runeStyle.Style = TintStyleBackground(runeStyle.Style, 1/(10-float32(tick)))
+			//}
+
+			//
+			/////////////////////////////
+
+			t.SetCell(x, y, runeStyle)
 			x += 1
 		}
+
 		x = 0
 		y += 1
 	}
 
-	for _, location := range world.Beings {
-		t.screen.SetCell(location.X-wnd.Left, location.Y-wnd.Top+1, playerStyle, 'M')
-	}
-
-	player := world.Beings[character.Player]
-	str := fmt.Sprintf("X: %d, Y: %d -- Left: %d, Top: %d, Width: %d, Height: %d", player.X, player.Y, wnd.Left, wnd.Top, wnd.Width, wnd.Height)
-
+	player := gameWorld.Player
+	str := fmt.Sprintf("X: %d, Y: %d -- Left: %d, Top: %d, Width: %d, Height: %d", player.Location.X, player.Location.Y, wnd.Left, wnd.Top, wnd.Width, wnd.Height)
 	t.screen.SetContent(0, 0, ' ', []rune(str), displayStyle)
+
+	str = fmt.Sprintf("::Time::")
+	t.screen.SetContent(w-t.CommandWidth+1, 2, ' ', []rune(str), borderStyle)
+
+	c := "Night"
+	if cycle == object.DayTime {
+		c = "  Day"
+	}
+	str = fmt.Sprintf("%s %d", c, count)
+	t.screen.SetContent(w-t.CommandWidth+1, 3, ' ', []rune(str), borderStyle)
 }
 
-func (t Terminal) drawWindow(player world.Point, worldHeight, worldWidth int) Window {
-	//w := t.DisplayWidth
-	//h := t.DisplayHeight
+func drawCell(l object.ThingList, light object.LightBlock, bgFactor float32) RuneStyle {
+	runeStyle := RuneStyle{Symbol: 'X', Style: borderStyle}
+
+	idx := -1
+	for _, obj := range l {
+		if obj.Ident().Index > idx {
+			idx = obj.Ident().Index
+			runeStyle = FindRuneStyle(obj, light)
+		}
+	}
+
+	runeStyle.Style = TintStyleBackground(runeStyle.Style, bgFactor)
+	return runeStyle
+}
+
+func (t Terminal) drawWindow(player image.Point, worldHeight, worldWidth int) geometry.Window {
 	w, h := t.screen.Size()
+	w -= t.CommandWidth
+	h -= 1
 	if w == 0 || h == 0 {
 		panic("invalid screen size")
 	}
@@ -134,5 +158,5 @@ func (t Terminal) drawWindow(player world.Point, worldHeight, worldWidth int) Wi
 		height = worldHeight
 	}
 
-	return Window{left, top, width, height}
+	return geometry.Window{Left: left, Top: top, Width: width, Height: height}
 }

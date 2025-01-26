@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"gobotworld/src/terminal"
-	"gobotworld/src/world"
 	"os"
 	"time"
 )
@@ -57,9 +56,4 @@ loop:
 		}
 		term.Show()
 	}
-}
-
-func circle(origin world.Point, size int) terminal.Window {
-	top := origin.Y - size
-	left := origin.X - size
 }

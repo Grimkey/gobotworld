@@ -1,8 +1,9 @@
 module gobotworld
 
-go 1.19
+go 1.21
 
 require (
+	github.com/fzipp/astar v0.2.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gdamore/tcell/v2 v2.5.3 // indirect
 	github.com/gizak/termui/v3 v3.1.0 // indirect

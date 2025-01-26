@@ -1,123 +1,228 @@
 package world
 
 import (
-	"gobotworld/src/world/character"
-	"gobotworld/src/world/terrain"
+	"gobotworld/src/geometry"
+	"gobotworld/src/world/object"
+	"image"
+	"log"
 	"math/rand"
 )
 
 const (
 	Width  = 200
 	Height = 200
+
+	ticksPerCount   = 4
+	countPerDay     = 20
+	countPerHalfDay = countPerDay / 2
 )
 
-type Point struct {
-	X int
-	Y int
-}
+type Lights []*image.Point
 
-type Cell struct {
-	Terrain terrain.Terrain
-	Light   int
-}
-
-type World struct {
-	Geography [][]*Cell
-	Beings    map[character.Character]*Point
-}
-
-type DefaultTerrain struct {
-	Type  terrain.Terrain
-	Units int
-}
-
-type Config struct {
-	terrainTypes []DefaultTerrain
-	terrainSum   int
-}
-
-func NewConfig(t ...DefaultTerrain) Config {
-	sum := 0
-	internalTerrain := make([]DefaultTerrain, 0, len(t))
-	for _, item := range t {
-		sum += item.Units
-		internalTerrain = append(internalTerrain, DefaultTerrain{item.Type, sum})
-	}
-	return Config{
-		terrainTypes: internalTerrain,
-		terrainSum:   sum,
-	}
-}
-
-func (c Config) RandomTerrain() terrain.Terrain {
-	rnd := rand.Intn(c.terrainSum)
-	for _, v := range c.terrainTypes {
-		if rnd < v.Units {
-			return v.Type
-		}
-	}
-	return c.terrainTypes[len(c.terrainTypes)-1].Type
-}
-
-func DefaultWorld() World {
-	cfg := NewConfig(
-		DefaultTerrain{terrain.Empty, 20},
-		DefaultTerrain{terrain.Dirt, 7},
-		DefaultTerrain{terrain.Rock, 3},
-		DefaultTerrain{terrain.Obstacle, 1},
-	)
-
-	return InitWorld(Height, Width, cfg)
-}
-
-func InitWorld(height, width int, cfg Config) World {
-	geography := make([][]*Cell, height, height)
-
-	for i := range geography {
-		geography[i] = make([]*Cell, 0, width)
-		for j := 0; j < Width; j++ {
-			cell := Cell{
-				Terrain: cfg.RandomTerrain(),
-				Light:   0,
-			}
-			geography[i] = append(geography[i], &cell)
+func (lts Lights) NearestLight(p image.Point) image.Point {
+	var nearest image.Point
+	var nearestDist = 0
+	for _, light := range lts {
+		d := geometry.Distance(*light, p)
+		if d < nearestDist {
+			nearest = *light
 		}
 	}
 
-	playerLocation := Point{Width / 2, Height / 2}
-
-	return World{
-		Geography: geography,
-		Beings:    map[character.Character]*Point{character.Player: &playerLocation},
-	}
+	return nearest
 }
 
-func (world World) Height() int {
-	return Height
-}
+type Map [][]object.ThingList
 
-func (world World) Width() int {
-	return Width
-}
-
-func (world World) At(point Point) *Cell {
+func (m Map) At(point image.Point) object.ThingList {
 	if point.Y < 0 || point.X < 0 {
 		return nil
 	}
-	if point.Y >= len(world.Geography) {
+	if point.Y >= len(m) {
 		return nil
 	}
-	if point.X >= len(world.Geography[point.Y]) {
+	if point.X >= len(m[point.Y]) {
 		return nil
 	}
-	return world.Geography[point.Y][point.X]
+	return m[point.Y][point.X]
 }
 
-func (world World) Move(char character.Character, deltaX int, deltaY int) {
-	location := world.Beings[char]
-	proposed := Point{X: location.X + deltaX, Y: location.Y + deltaY}
+func (m Map) SetLoc(p image.Point, things object.ThingList) {
+	m[p.Y][p.X] = things
+}
 
-	if world.At(proposed) != nil && world.At(proposed).Terrain.Passable {
-		world.Beings[char] = &proposed
+func (m Map) RemoveLoc(p image.Point, thing object.Thing) {
+	m.SetLoc(p, m.At(p).DeleteItem(thing))
+}
+
+func (m Map) AddLoc(p image.Point, thing object.Thing) {
+	m.SetLoc(p, append(m.At(p), thing))
+}
+
+func (m Map) Height() int {
+	return len(m)
+}
+
+func (m Map) Width() int {
+	return len(m[0])
+}
+
+func (m Map) CanPass(point image.Point, thing object.Thing) bool {
+	objs := m.At(point)
+	for _, obj := range objs {
+		if !obj.Passable(thing) {
+			return false
+		}
 	}
+	return true
+}
+
+func RandomMap(height, width int, cfg Config) (Map, Lights) {
+	geography := make(Map, height)
+	var lights Lights
+	for i := range geography {
+		geography[i] = make([]object.ThingList, 0, width)
+		for j := 0; j < width; j++ {
+			rndObj := cfg.RandomObject()
+			if rndObj.Ident().Type == object.TorchType {
+				lights = append(lights, &image.Point{X: j, Y: i})
+			}
+			geography[i] = append(geography[i], object.ThingList{rndObj})
+		}
+	}
+	return geography, lights
+}
+
+type World struct {
+	logger    *log.Logger
+	Geography Map
+	Player    *Character
+	Beings    map[*Character]bool
+	Lights    Lights
+	time      *int
+}
+
+func DefaultWorld(logger *log.Logger) World {
+	cfg := NewConfig(
+		DefaultTerrain{object.NewObject(0, object.Dirt1Type, true), 400},
+		DefaultTerrain{object.NewObject(0, object.Dirt2Type, true), 250},
+		DefaultTerrain{object.NewObject(0, object.RockType, true), 50},
+		DefaultTerrain{object.NewObject(0, object.ObstacleType, false), 5},
+		DefaultTerrain{object.NewObject(0, object.TorchType, false), 1},
+	)
+
+	return InitWorld(logger, Height, Width, cfg)
+}
+
+func InitWorld(logger *log.Logger, height, width int, cfg Config) World {
+	geography, lights := RandomMap(height, width, cfg)
+
+	playerLocation := image.Point{X: width / 2, Y: height / 2}
+	enemyLocation := image.Point{X: 10, Y: 10}
+	start := 0
+	player := NewPlayer(playerLocation)
+	enemy := NewNPC(enemyLocation)
+
+	geography.AddLoc(playerLocation, player)
+	geography.AddLoc(enemyLocation, enemy)
+
+	logger.Print("Working with a map of size ", geography.Height(), "x", geography.Width())
+	return World{
+		logger:    logger,
+		Geography: geography,
+		Lights:    lights,
+		Player:    player,
+		Beings: map[*Character]bool{
+			player: true,
+			enemy:  false,
+		},
+		time: &start,
+	}
+}
+
+func (world World) Time() (object.DayCycle, int) {
+	now := (*world.time / ticksPerCount) % countPerDay
+	cycle := object.DayTime
+	if now > countPerHalfDay {
+		cycle = object.NightTime
+	}
+	return cycle, now % countPerHalfDay
+}
+
+func (world World) Tick() {
+	*world.time += 1
+}
+
+var directions = []Direction{North, South, East, West}
+
+func (world World) NpcMove() {
+	for being, isPlayer := range world.Beings {
+		if isPlayer {
+			continue
+		}
+
+		// Shuffle the directions
+		rand.Shuffle(len(directions), func(i, j int) { directions[i], directions[j] = directions[j], directions[i] })
+
+		// Try to move in each direction
+		for _, direction := range directions {
+			if moved := world.Move(being, direction); moved {
+				// If the move was successful, stop trying to move
+				world.logger.Printf("NPC %d moved %s", being.Ident().Index, directions[direction])
+				break
+			}
+		}
+	}
+}
+
+func (world World) Neighbours(p image.Point) []image.Point {
+	offsets := []image.Point{
+		{0, -1}, // North
+		{1, 0},  // East
+		{0, 1},  // South
+		{-1, 0}, // West
+	}
+	res := make([]image.Point, 0, 4)
+	for _, off := range offsets {
+		q := p.Add(off)
+		if world.Geography.CanPass(q, world.Player) {
+			res = append(res, q)
+		}
+	}
+	return res
+}
+
+var moveTransform = map[Direction]image.Point{
+	North: {X: 0, Y: -1},
+	West:  {X: -1, Y: 0},
+	South: {X: 0, Y: 1},
+	East:  {X: 1, Y: 0},
+}
+
+func (world World) Move(char *Character, direction Direction) bool {
+	location := char.Location
+	char.Direction = direction
+	delta := moveTransform[direction]
+	proposed := image.Point{X: location.X + delta.X, Y: location.Y + delta.Y}
+
+	if world.Geography.At(proposed) == nil {
+		return false
+	}
+
+	for being := range world.Beings {
+		if char.Ident().Index == being.Ident().Index { // Ignore if we are the same being
+			continue
+		}
+		if being.Location.X == proposed.X && being.Location.Y == proposed.Y && being.Passable(char) == false {
+			return false
+		}
+	}
+
+	if world.Geography.CanPass(proposed, char) {
+		world.Geography.RemoveLoc(*location, char)
+		world.Geography.AddLoc(proposed, char)
+		char.Location = &proposed
+	}
+
+	return true
 }
