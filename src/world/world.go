@@ -21,15 +21,26 @@ const (
 type Lights []*image.Point
 
 func (lts Lights) NearestLight(p image.Point) image.Point {
+	if len(lts) == 0 {
+		return image.Point{X: -1, Y: -1} // Indicate no lights are available
+	}
+
 	var nearest image.Point
-	var nearestDist = 0
+	var nearestDist = 0 // math.MaxInt
+	found := false
 	for _, light := range lts {
 		d := geometry.Distance(*light, p)
+
 		if d < nearestDist {
 			nearest = *light
+			nearestDist = d
+			found = true
 		}
 	}
 
+	if !found {
+		return image.Point{X: 0, Y: 0} // No light found
+	}
 	return nearest
 }
 
@@ -69,6 +80,10 @@ func (m Map) Width() int {
 }
 
 func (m Map) CanPass(point image.Point, thing object.Thing) bool {
+	if point.Y < 0 || point.X < 0 || point.Y >= len(m) || point.X >= len(m[0]) {
+		return false
+	}
+
 	objs := m.At(point)
 	for _, obj := range objs {
 		if !obj.Passable(thing) {
@@ -194,8 +209,21 @@ func (world World) Neighbours(p image.Point) iter.Seq[image.Point] {
 			{-1, 0}, // West
 		}
 
+		maxIterations := 100000
+		iteration := 0
 		for _, off := range offsets {
+			iteration++
+			if iteration > maxIterations {
+				world.logger.Fatalf("Exceeded max iterations at point %v", p)
+			}
+
 			q := p.Add(off)
+
+			// Check map boundaries
+			if q.X < 0 || q.X >= world.Geography.Width() || q.Y < 0 || q.Y >= world.Geography.Height() {
+				continue
+			}
+
 			if world.Geography.CanPass(q, world.Player) {
 				// I find iterators a little tricky. This means keep yielding until we get back a false which means the caller is done iterating.
 				if !yield(q) {

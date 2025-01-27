@@ -2,17 +2,20 @@ package world
 
 import (
 	"image"
+	"log"
 
 	"github.com/fzipp/astar"
 )
 
 type PathFinder struct {
-	World World
+	World  World
+	Logger *log.Logger
 }
 
 func (pf PathFinder) Find(start, dest image.Point) map[image.Point]bool {
 	path := make(map[image.Point]bool)
 	points := astar.FindPath[image.Point](pf.World, start, dest, manhattanDistance, manhattanDistance)
+
 	for _, point := range points {
 		path[point] = true
 	}

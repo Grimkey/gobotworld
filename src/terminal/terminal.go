@@ -6,6 +6,7 @@ import (
 	"gobotworld/src/world"
 	"gobotworld/src/world/object"
 	"image"
+	"log"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -15,6 +16,7 @@ var DefaultDisplayLength = 15
 type Terminal struct {
 	CommandWidth int
 	screen       tcell.Screen
+	Logger       *log.Logger
 }
 
 func Init() (Terminal, error) {
@@ -51,14 +53,29 @@ func (t Terminal) SetCell(x int, y int, runeStyle RuneStyle) {
 	t.screen.SetCell(x, y, runeStyle.Style, runeStyle.Symbol)
 }
 
+func (t Terminal) PrintPath(path map[image.Point]bool) {
+	t.Logger.Print("Path: ")
+	for point := range path {
+		t.Logger.Printf("(%d, %d)\n", point.X, point.Y)
+	}
+}
+
 func (t Terminal) DrawWorld(gameWorld world.World) {
 	playerLocation := *gameWorld.Player.Location
 	wnd := t.drawWindow(playerLocation, gameWorld.Geography.Height(), gameWorld.Geography.Width())
 	cycle, count := gameWorld.Time()
-	pathFinder := world.PathFinder{World: gameWorld}
+	pathFinder := world.PathFinder{World: gameWorld, Logger: t.Logger}
 
 	nearestLight := gameWorld.Lights.NearestLight(playerLocation)
+	if nearestLight.X == -1 && nearestLight.Y == -1 {
+		if t.Logger != nil {
+			t.Logger.Println("No nearest light found.")
+		}
+		return
+	}
+	t.Logger.Printf("Nearest light found at %d, %d\n", nearestLight.X, nearestLight.Y)
 	path := pathFinder.Find(playerLocation, nearestLight)
+	t.PrintPath(path)
 
 	x := 0
 	y := 1
@@ -77,20 +94,11 @@ func (t Terminal) DrawWorld(gameWorld world.World) {
 			sense := SenseValue(loc, gameWorld)
 			runeStyle := drawCell(pt, light, sense)
 
-			if ok := path[loc]; ok {
-				runeStyle = RuneStyle{Symbol: runeStyle.Symbol, Style: pathStyle}
+			if path != nil {
+				if ok := path[loc]; ok {
+					runeStyle = RuneStyle{Symbol: runeStyle.Symbol, Style: pathStyle}
+				}
 			}
-
-			/////////////////////////////
-			// Tint test
-
-			//cycle, tick := gameWorld.Time()
-			//if cycle == object.NightTime {
-			//	runeStyle.Style = TintStyleBackground(runeStyle.Style, 1/(10-float32(tick)))
-			//}
-
-			//
-			/////////////////////////////
 
 			t.SetCell(x, y, runeStyle)
 			x += 1

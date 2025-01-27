@@ -30,6 +30,7 @@ func main() {
 	gameWorld := world.DefaultWorld(logger)
 
 	term, err := terminal.Init()
+	term.Logger = logger
 	defer term.Fini()
 
 	panicOnError(err)
@@ -68,7 +69,7 @@ loop:
 		select {
 		case <-quit:
 			break loop
-		case <-time.After(time.Millisecond * 50):
+		case <-time.After(time.Millisecond * 50): // TODO: Add back subtracting `dur` to make it snappier
 		}
 		start := time.Now()
 		gameWorld.Tick()
