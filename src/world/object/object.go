@@ -1,8 +1,7 @@
+// Package for creating objects in the world. To simplify implementation, there is a list of objects that exist.
 package object
 
 import (
-	"gobotworld/src/geometry"
-	"image"
 	"slices"
 )
 
@@ -63,30 +62,4 @@ func (tl ThingList) Top() Thing {
 	}
 
 	return tl[0]
-}
-
-type Light struct {
-	ident Object
-	Area  int
-}
-
-func NewLight(area int) Light {
-	return Light{ident: Object{10, TorchType}, Area: area}
-}
-
-func (lt Light) Ident() Object {
-	return lt.ident
-}
-
-func (lt Light) Passable(_o Thing) bool {
-	return true
-}
-
-func LightAt(origin image.Point, target image.Point, area int) int {
-	distance := geometry.Distance(origin, target)
-	lumen := 0
-	if distance <= area {
-		lumen = distance
-	}
-	return lumen
 }

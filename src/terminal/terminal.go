@@ -63,7 +63,7 @@ func (t Terminal) PrintPath(path map[image.Point]bool) {
 func (t Terminal) DrawWorld(gameWorld world.World) {
 	playerLocation := *gameWorld.Player.Location
 	wnd := t.drawWindow(playerLocation, gameWorld.Geography.Height(), gameWorld.Geography.Width())
-	cycle, count := gameWorld.Time()
+	cycle, count := object.Time(*gameWorld.Time)
 	pathFinder := world.PathFinder{World: gameWorld, Logger: t.Logger}
 
 	nearestLight := gameWorld.Lights.NearestLight(playerLocation)
@@ -90,8 +90,8 @@ func (t Terminal) DrawWorld(gameWorld world.World) {
 			pt := gameWorld.Geography[col][row]
 			loc := image.Point{X: row, Y: col}
 
-			light := LightValue(loc, wnd, gameWorld)
-			sense := SenseValue(loc, gameWorld)
+			light := LightValue(loc, wnd, gameWorld.Lights, cycle)
+			sense := SenseValue(loc, *gameWorld.Player.Location, gameWorld.Player.Direction)
 			runeStyle := drawCell(pt, light, sense)
 
 			if path != nil {

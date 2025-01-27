@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gobotworld/src/terminal"
 	"gobotworld/src/world"
+	"gobotworld/src/world/object"
 	"log"
 	"os"
 	"time"
@@ -46,13 +47,13 @@ func main() {
 					close(quit)
 					return
 				case tcell.KeyLeft:
-					gameWorld.Move(gameWorld.Player, world.West)
+					gameWorld.Move(gameWorld.Player, object.West)
 				case tcell.KeyRight:
-					gameWorld.Move(gameWorld.Player, world.East)
+					gameWorld.Move(gameWorld.Player, object.East)
 				case tcell.KeyUp:
-					gameWorld.Move(gameWorld.Player, world.North)
+					gameWorld.Move(gameWorld.Player, object.North)
 				case tcell.KeyDown:
-					gameWorld.Move(gameWorld.Player, world.South)
+					gameWorld.Move(gameWorld.Player, object.South)
 
 				}
 			case *tcell.EventResize:

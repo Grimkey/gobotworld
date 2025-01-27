@@ -1,7 +1,7 @@
+// Package provides a library for simulating a 2D grid-based world with characters and light sources.
 package world
 
 import (
-	"gobotworld/src/geometry"
 	"gobotworld/src/world/object"
 	"image"
 	"iter"
@@ -12,38 +12,9 @@ import (
 const (
 	Width  = 200
 	Height = 200
-
-	ticksPerCount   = 4
-	countPerDay     = 20
-	countPerHalfDay = countPerDay / 2
 )
 
-type Lights []*image.Point
-
-func (lts Lights) NearestLight(p image.Point) image.Point {
-	if len(lts) == 0 {
-		return image.Point{X: -1, Y: -1} // Indicate no lights are available
-	}
-
-	var nearest image.Point
-	var nearestDist = 0 // math.MaxInt
-	found := false
-	for _, light := range lts {
-		d := geometry.Distance(*light, p)
-
-		if d < nearestDist {
-			nearest = *light
-			nearestDist = d
-			found = true
-		}
-	}
-
-	if !found {
-		return image.Point{X: 0, Y: 0} // No light found
-	}
-	return nearest
-}
-
+// Map represents a 2D grid of objects.
 type Map [][]object.ThingList
 
 func (m Map) At(point image.Point) object.ThingList {
@@ -93,9 +64,9 @@ func (m Map) CanPass(point image.Point, thing object.Thing) bool {
 	return true
 }
 
-func RandomMap(height, width int, cfg Config) (Map, Lights) {
+func RandomMap(height, width int, cfg Config) (Map, object.Lights) {
 	geography := make(Map, height)
-	var lights Lights
+	var lights object.Lights
 	for i := range geography {
 		geography[i] = make([]object.ThingList, 0, width)
 		for j := 0; j < width; j++ {
@@ -109,13 +80,14 @@ func RandomMap(height, width int, cfg Config) (Map, Lights) {
 	return geography, lights
 }
 
+// World represents the entire simulated world, including the map, player, NPCs, lights, and time.
 type World struct {
 	logger    *log.Logger
 	Geography Map
-	Player    *Character
-	Beings    map[*Character]bool
-	Lights    Lights
-	time      *int
+	Player    *object.Character
+	Beings    map[*object.Character]bool
+	Lights    object.Lights
+	Time      *int // TODO: Make private
 }
 
 func EmptyWorld(logger *log.Logger) World {
@@ -145,8 +117,8 @@ func InitWorld(logger *log.Logger, height, width int, cfg Config) World {
 	playerLocation := image.Point{X: width / 2, Y: height / 2}
 	enemyLocation := image.Point{X: 10, Y: 10}
 	start := 0
-	player := NewPlayer(playerLocation)
-	enemy := NewNPC(enemyLocation)
+	player := object.NewPlayer(playerLocation)
+	enemy := object.NewNPC(enemyLocation)
 
 	geography.AddLoc(playerLocation, player)
 	geography.AddLoc(enemyLocation, enemy)
@@ -157,28 +129,19 @@ func InitWorld(logger *log.Logger, height, width int, cfg Config) World {
 		Geography: geography,
 		Lights:    lights,
 		Player:    player,
-		Beings: map[*Character]bool{
+		Beings: map[*object.Character]bool{
 			player: true,
 			enemy:  false,
 		},
-		time: &start,
+		Time: &start,
 	}
-}
-
-func (world World) Time() (object.DayCycle, int) {
-	now := (*world.time / ticksPerCount) % countPerDay
-	cycle := object.DayTime
-	if now > countPerHalfDay {
-		cycle = object.NightTime
-	}
-	return cycle, now % countPerHalfDay
 }
 
 func (world World) Tick() {
-	*world.time += 1
+	*world.Time += 1
 }
 
-var directions = []Direction{North, South, East, West}
+var directions = []object.Direction{object.North, object.South, object.East, object.West}
 
 func (world World) NpcMove() {
 	for being, isPlayer := range world.Beings {
@@ -234,14 +197,14 @@ func (world World) Neighbours(p image.Point) iter.Seq[image.Point] {
 	}
 }
 
-var moveTransform = map[Direction]image.Point{
-	North: {X: 0, Y: -1},
-	West:  {X: -1, Y: 0},
-	South: {X: 0, Y: 1},
-	East:  {X: 1, Y: 0},
+var moveTransform = map[object.Direction]image.Point{
+	object.North: {X: 0, Y: -1},
+	object.West:  {X: -1, Y: 0},
+	object.South: {X: 0, Y: 1},
+	object.East:  {X: 1, Y: 0},
 }
 
-func (world World) Move(char *Character, direction Direction) bool {
+func (world World) Move(char *object.Character, direction object.Direction) bool {
 	location := char.Location
 	char.Direction = direction
 	delta := moveTransform[direction]

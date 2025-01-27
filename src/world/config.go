@@ -1,3 +1,4 @@
+// Package provides a collection of configuration for creating a world. Eventually, this will be moved to a file or some medium for configing the world.
 package world
 
 import (
@@ -13,7 +14,7 @@ type DefaultTerrain struct {
 type Config struct {
 	terrainTypes   []DefaultTerrain
 	terrainSum     int
-	rndObjextIndex func(int) int
+	rndObjextIndex func(int) int // Useful for deterministic testing
 }
 
 func NewConfig(t ...DefaultTerrain) Config {
@@ -26,7 +27,7 @@ func NewConfig(t ...DefaultTerrain) Config {
 	cfg := Config{
 		terrainTypes:   internalTerrain,
 		terrainSum:     sum,
-		rndObjextIndex: randomObjectIndex, // Useful for deterministic testing
+		rndObjextIndex: randomObjectIndex,
 	}
 	return cfg
 }

@@ -40,7 +40,7 @@ func TestMoveCharacter(t *testing.T) {
 
 	player := worldInstance.Player
 	startLocation := *player.Location
-	moveDirection := East
+	moveDirection := object.East
 
 	moved := worldInstance.Move(player, moveDirection)
 	assert.True(t, moved, "Player should be able to move East")
@@ -57,9 +57,9 @@ func TestNpcMove(t *testing.T) {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	worldInstance := DefaultWorld(logger)
 
-	enemy := &Character{
+	enemy := &object.Character{
 		Location:  &image.Point{X: 10, Y: 10},
-		Direction: North,
+		Direction: object.North,
 	}
 	worldInstance.Beings[enemy] = false
 
@@ -94,14 +94,14 @@ func TestTimeCycle(t *testing.T) {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	worldInstance := DefaultWorld(logger)
 
-	cycle, ticks := worldInstance.Time()
+	cycle, ticks := object.Time(*worldInstance.Time)
 	assert.Equal(t, object.DayTime, cycle, "Initial time cycle should be DayTime")
 	assert.Equal(t, 0, ticks, "Initial time ticks should be 0")
 
 	worldInstance.Tick()
 
-	cycle, cnt := worldInstance.Time()
-	assert.Equal(t, 1, *worldInstance.time, "Cycle should be after the first tick")
+	cycle, cnt := object.Time(*worldInstance.Time)
+	assert.Equal(t, 1, *worldInstance.Time, "Cycle should be after the first tick")
 	assert.Equal(t, 0, cnt, "Cnt only goes up for full days")
 	assert.Equal(t, object.DayTime, cycle, "Time cycle should stay DayTime")
 
@@ -111,8 +111,8 @@ func TestTimeCycle(t *testing.T) {
 		worldInstance.Tick()
 	}
 
-	cycle, cnt = worldInstance.Time()
-	assert.Equal(t, 45, *worldInstance.time, "Correct calculation for ticks")
+	cycle, cnt = object.Time(*worldInstance.Time)
+	assert.Equal(t, 45, *worldInstance.Time, "Correct calculation for ticks")
 	assert.Equal(t, 1, cnt, "Cnt is how far into the day we are")
 	assert.Equal(t, object.NightTime, cycle, "Time cycle should switch to NightTime after enough ticks")
 }

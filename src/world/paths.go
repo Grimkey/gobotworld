@@ -1,3 +1,4 @@
+// Package provides a library for calculating paths using the A* algorithm.
 package world
 
 import (

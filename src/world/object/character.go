@@ -1,7 +1,6 @@
-package world
+package object
 
 import (
-	"gobotworld/src/world/object"
 	"image"
 )
 
@@ -31,24 +30,24 @@ func (d Direction) String() string {
 }
 
 type Character struct {
-	ident     object.Object
+	ident     Object
 	Location  *image.Point
 	index     int
-	objType   object.ObjectType
+	objType   ObjectType
 	Direction Direction
 }
 
-func (ch *Character) Ident() object.Object {
+func (ch *Character) Ident() Object {
 	return ch.ident
 }
 
-func (ch *Character) Passable(_o object.Thing) bool {
+func (ch *Character) Passable(_o Thing) bool {
 	return false
 }
 
-func newCharacter(id int, t object.ObjectType, start image.Point) *Character {
+func newCharacter(id int, t ObjectType, start image.Point) *Character {
 	c := Character{
-		ident:     object.Object{Index: id, Type: t},
+		ident:     Object{Index: id, Type: t},
 		Location:  &start,
 		Direction: North,
 	}
@@ -57,9 +56,9 @@ func newCharacter(id int, t object.ObjectType, start image.Point) *Character {
 }
 
 func NewPlayer(start image.Point) *Character {
-	return newCharacter(99, object.PlayerType, start)
+	return newCharacter(99, PlayerType, start)
 }
 
 func NewNPC(start image.Point) *Character {
-	return newCharacter(20, object.EnemyType, start)
+	return newCharacter(20, EnemyType, start)
 }
